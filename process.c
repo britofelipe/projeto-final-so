@@ -104,3 +104,51 @@ void terminateProcess(ProcessQueue *queue, int pid) {
     }
     printf("Process with PID %d not found.\n", pid);
 }
+
+// Simulação de chamadas de sistema
+
+int sys_fork(ProcessQueue *queue, int parent_pid, int new_pid, const char *name) {
+    int i = queue->front;
+    while (1) {
+        if (queue->processes[i].pid == parent_pid) {
+            addProcess(queue, new_pid, name);
+            return new_pid;
+        }
+        if (i == queue->rear) break;
+        i = (i + 1) % MAX_PROCESSES;
+    }
+    printf("Parent process with PID %d not found.\n", parent_pid);
+    return -1;
+}
+
+void sys_exec(ProcessQueue *queue, int pid, const char *new_name) {
+    int i = queue->front;
+    while (1) {
+        if (queue->processes[i].pid == pid) {
+            strncpy(queue->processes[i].name, new_name, sizeof(queue->processes[i].name) - 1);
+            queue->processes[i].name[sizeof(queue->processes[i].name) - 1] = '\0';
+            printf("Process with PID %d is now executing %s.\n", pid, new_name);
+            return;
+        }
+        if (i == queue->rear) break;
+        i = (i + 1) % MAX_PROCESSES;
+    }
+    printf("Process with PID %d not found.\n", pid);
+}
+
+void sys_wait(ProcessQueue *queue, int pid) {
+    int i = queue->front;
+    while (1) {
+        if (queue->processes[i].pid == pid) {
+            printf("Waiting for process with PID %d to terminate.\n", pid);
+            while (queue->processes[i].state != TERMINATED) {
+                // Aqui poderia ser uma espera ativa ou uma simulação de espera real
+            }
+            printf("Process with PID %d has terminated.\n", pid);
+            return;
+        }
+        if (i == queue->rear) break;
+        i = (i + 1) % MAX_PROCESSES;
+    }
+    printf("Process with PID %d not found.\n", pid);
+}

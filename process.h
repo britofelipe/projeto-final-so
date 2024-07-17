@@ -31,4 +31,9 @@ void addProcess(ProcessQueue *queue, int pid, const char *name);
 void suspendProcess(ProcessQueue *queue, int pid);
 void terminateProcess(ProcessQueue *queue, int pid);
 
+// Funções de simulação de chamadas de sistema
+int sys_fork(ProcessQueue *queue, int parent_pid, int new_pid, const char *name);
+void sys_exec(ProcessQueue *queue, int pid, const char *new_name);
+void sys_wait(ProcessQueue *queue, int pid);
+
 #endif // PROCESS_H
