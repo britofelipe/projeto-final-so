@@ -11,29 +11,34 @@ int main() {
     initializeQueue(&queue);
 
     // Adicionar processos iniciais
-    addProcess(&queue, 1, "Process1");
-    addProcess(&queue, 2, "Process2");
+    addProcess(&queue, 1, "Process1", 5, 1);
+    addProcess(&queue, 2, "Process2", 3, 3);
+    addProcess(&queue, 3, "Process3", 2, 2);
     displayQueue(&queue);
 
-    // Suspender e exibir processos
-    suspendProcess(&queue, 1);
+    // Teste de escalonamento FIFO
+    printf("\n--- Scheduling using FIFO ---\n");
+    scheduleFIFO(&queue);
     displayQueue(&queue);
 
-    // Terminar e exibir processos
-    terminateProcess(&queue, 2);
+    // Re-adicionar processos para outros testes
+    addProcess(&queue, 1, "Process1", 5, 1);
+    addProcess(&queue, 2, "Process2", 3, 3);
+    addProcess(&queue, 3, "Process3", 2, 2);
+
+    // Teste de escalonamento Round-Robin
+    printf("\n--- Scheduling using Round-Robin ---\n");
+    scheduleRoundRobin(&queue);
     displayQueue(&queue);
 
-    // Simulação de chamadas de sistema
-    int child_pid = sys_fork(&queue, 1, 3, "ChildProcess1");
-    displayQueue(&queue);
+    // Re-adicionar processos para outros testes
+    addProcess(&queue, 1, "Process1", 5, 1);
+    addProcess(&queue, 2, "Process2", 3, 3);
+    addProcess(&queue, 3, "Process3", 2, 2);
 
-    if (child_pid != -1) {
-        sys_exec(&queue, child_pid, "NewChildProcess1");
-        displayQueue(&queue);
-    }
-
-    sys_wait(&queue, 3);
-    terminateProcess(&queue, 3);
+    // Teste de escalonamento por Prioridade
+    printf("\n--- Scheduling using Priority ---\n");
+    schedulePriority(&queue);
     displayQueue(&queue);
 
     // Gerenciamento de threads

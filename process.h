@@ -5,6 +5,7 @@
 
 #define MAX_PROCESSES 10
 #define MAX_THREADS 10
+#define TIME_QUANTUM 2  // Quantum de tempo para Round-Robin
 
 typedef enum {
     RUNNING,
@@ -16,6 +17,8 @@ typedef struct {
     int pid;
     ProcessState state;
     char name[50];
+    int burst_time;  // Tempo de execução do processo
+    int priority;    // Prioridade do processo
 } Process;
 
 typedef struct {
@@ -43,7 +46,7 @@ int isQueueEmpty(ProcessQueue *queue);
 void enqueue(ProcessQueue *queue, Process process);
 Process dequeue(ProcessQueue *queue);
 void displayQueue(const ProcessQueue *queue);
-void addProcess(ProcessQueue *queue, int pid, const char *name);
+void addProcess(ProcessQueue *queue, int pid, const char *name, int burst_time, int priority);
 void suspendProcess(ProcessQueue *queue, int pid);
 void terminateProcess(ProcessQueue *queue, int pid);
 
@@ -58,5 +61,10 @@ int createThread(ThreadPool *pool, const char *name, void *(*start_routine)(void
 void suspendThread(ThreadPool *pool, int tid);
 void terminateThread(ThreadPool *pool, int tid);
 void displayThreads(const ThreadPool *pool);
+
+// Funções de escalonamento
+void scheduleFIFO(ProcessQueue *queue);
+void scheduleRoundRobin(ProcessQueue *queue);
+void schedulePriority(ProcessQueue *queue);
 
 #endif // PROCESS_H

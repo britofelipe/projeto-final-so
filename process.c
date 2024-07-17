@@ -52,20 +52,24 @@ void displayQueue(const ProcessQueue *queue) {
     printf("Processes in the queue:\n");
     int i = queue->front;
     while (1) {
-        printf("PID: %d, Name: %s, State: %s\n", queue->processes[i].pid, queue->processes[i].name,
+        printf("PID: %d, Name: %s, State: %s, Burst Time: %d, Priority: %d\n",
+               queue->processes[i].pid, queue->processes[i].name,
                queue->processes[i].state == RUNNING ? "RUNNING" :
-               queue->processes[i].state == SUSPENDED ? "SUSPENDED" : "TERMINATED");
+               queue->processes[i].state == SUSPENDED ? "SUSPENDED" : "TERMINATED",
+               queue->processes[i].burst_time, queue->processes[i].priority);
         if (i == queue->rear) break;
         i = (i + 1) % MAX_PROCESSES;
     }
 }
 
-void addProcess(ProcessQueue *queue, int pid, const char *name) {
+void addProcess(ProcessQueue *queue, int pid, const char *name, int burst_time, int priority) {
     Process process;
     process.pid = pid;
     process.state = RUNNING;
     strncpy(process.name, name, sizeof(process.name) - 1);
     process.name[sizeof(process.name) - 1] = '\0';
+    process.burst_time = burst_time;
+    process.priority = priority;
     enqueue(queue, process);
     printf("Process %s with PID %d added and is now RUNNING.\n", name, pid);
 }
@@ -112,7 +116,7 @@ int sys_fork(ProcessQueue *queue, int parent_pid, int new_pid, const char *name)
     int i = queue->front;
     while (1) {
         if (queue->processes[i].pid == parent_pid) {
-            addProcess(queue, new_pid, name);
+            addProcess(queue, new_pid, name, queue->processes[i].burst_time, queue->processes[i].priority);
             return new_pid;
         }
         if (i == queue->rear) break;
@@ -234,4 +238,89 @@ void displayThreads(const ThreadPool *pool) {
     }
 
     pthread_mutex_unlock((pthread_mutex_t *)&pool->lock);
+}
+
+// Escalonamento de processos
+
+void scheduleFIFO(ProcessQueue *queue) {
+    if (isQueueEmpty(queue)) {
+        printf("No processes to schedule.\n");
+        return;
+    }
+
+    while (!isQueueEmpty(queue)) {
+        Process process = dequeue(queue);
+        printf("Running process %s (PID %d) with burst time %d\n", process.name, process.pid, process.burst_time);
+        process.state = TERMINATED;
+        printf("Process %s (PID %d) terminated.\n", process.name, process.pid);
+    }
+}
+
+void scheduleRoundRobin(ProcessQueue *queue) {
+    if (isQueueEmpty(queue)) {
+        printf("No processes to schedule.\n");
+        return;
+    }
+
+    int time_quantum = TIME_QUANTUM;
+
+    while (!isQueueEmpty(queue)) {
+        int i = queue->front;
+        while (1) {
+            Process *process = &queue->processes[i];
+            if (process->burst_time > 0) {
+                if (process->burst_time > time_quantum) {
+                    printf("Running process %s (PID %d) for %d units\n", process->name, process->pid, time_quantum);
+                    process->burst_time -= time_quantum;
+                } else {
+                    printf("Running process %s (PID %d) for %d units\n", process->name, process->pid, process->burst_time);
+                    process->burst_time = 0;
+                    process->state = TERMINATED;
+                    printf("Process %s (PID %d) terminated.\n", process->name, process->pid);
+                }
+            }
+            if (i == queue->rear) break;
+            i = (i + 1) % MAX_PROCESSES;
+        }
+    }
+}
+
+void schedulePriority(ProcessQueue *queue) {
+    if (isQueueEmpty(queue)) {
+        printf("No processes to schedule.\n");
+        return;
+    }
+
+    while (!isQueueEmpty(queue)) {
+        int highest_priority = -1;
+        int highest_priority_index = -1;
+
+        int i = queue->front;
+        while (1) {
+            if (queue->processes[i].priority > highest_priority) {
+                highest_priority = queue->processes[i].priority;
+                highest_priority_index = i;
+            }
+            if (i == queue->rear) break;
+            i = (i + 1) % MAX_PROCESSES;
+        }
+
+        if (highest_priority_index != -1) {
+            Process process = queue->processes[highest_priority_index];
+            printf("Running process %s (PID %d) with priority %d\n", process.name, process.pid, process.priority);
+            process.state = TERMINATED;
+            printf("Process %s (PID %d) terminated.\n", process.name, process.pid);
+
+            for (int j = highest_priority_index; j != queue->rear; j = (j + 1) % MAX_PROCESSES) {
+                queue->processes[j] = queue->processes[(j + 1) % MAX_PROCESSES];
+            }
+
+            if (queue->front == queue->rear) {
+                queue->front = -1;
+                queue->rear = -1;
+            } else {
+                queue->rear = (queue->rear - 1 + MAX_PROCESSES) % MAX_PROCESSES;
+            }
+        }
+    }
 }
