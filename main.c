@@ -1,6 +1,11 @@
 #include <stdio.h>
 #include "process.h"
 
+void *thread_function(void *arg) {
+    printf("Thread is running...\n");
+    return NULL;
+}
+
 int main() {
     ProcessQueue queue;
     initializeQueue(&queue);
@@ -30,6 +35,20 @@ int main() {
     sys_wait(&queue, 3);
     terminateProcess(&queue, 3);
     displayQueue(&queue);
+
+    // Gerenciamento de threads
+    ThreadPool pool;
+    initializeThreadPool(&pool);
+
+    int tid1 = createThread(&pool, "Thread1", thread_function);
+    int tid2 = createThread(&pool, "Thread2", thread_function);
+    displayThreads(&pool);
+
+    suspendThread(&pool, tid1);
+    displayThreads(&pool);
+
+    terminateThread(&pool, tid2);
+    displayThreads(&pool);
 
     return 0;
 }

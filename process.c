@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <pthread.h>
 #include "process.h"
 
 void initializeQueue(ProcessQueue *queue) {
@@ -151,4 +152,86 @@ void sys_wait(ProcessQueue *queue, int pid) {
         i = (i + 1) % MAX_PROCESSES;
     }
     printf("Process with PID %d not found.\n", pid);
+}
+
+// Gerenciamento de threads
+
+void initializeThreadPool(ThreadPool *pool) {
+    pool->count = 0;
+    pthread_mutex_init(&pool->lock, NULL);
+}
+
+int createThread(ThreadPool *pool, const char *name, void *(*start_routine)(void *)) {
+    if (pool->count >= MAX_THREADS) {
+        printf("Thread pool is full. Cannot create more threads.\n");
+        return -1;
+    }
+
+    pthread_mutex_lock(&pool->lock);
+
+    Thread thread;
+    thread.tid = pool->count;
+    thread.state = RUNNING;
+    strncpy(thread.name, name, sizeof(thread.name) - 1);
+    thread.name[sizeof(thread.name) - 1] = '\0';
+    pthread_create(&thread.thread, NULL, start_routine, NULL);
+
+    pool->threads[pool->count++] = thread;
+
+    pthread_mutex_unlock(&pool->lock);
+
+    printf("Thread %s with TID %d created and is now RUNNING.\n", name, thread.tid);
+    return thread.tid;
+}
+
+void suspendThread(ThreadPool *pool, int tid) {
+    pthread_mutex_lock(&pool->lock);
+
+    for (int i = 0; i < pool->count; i++) {
+        if (pool->threads[i].tid == tid) {
+            pool->threads[i].state = SUSPENDED;
+            printf("Thread with TID %d is now SUSPENDED.\n", tid);
+            pthread_mutex_unlock(&pool->lock);
+            return;
+        }
+    }
+
+    pthread_mutex_unlock(&pool->lock);
+    printf("Thread with TID %d not found.\n", tid);
+}
+
+void terminateThread(ThreadPool *pool, int tid) {
+    pthread_mutex_lock(&pool->lock);
+
+    for (int i = 0; i < pool->count; i++) {
+        if (pool->threads[i].tid == tid) {
+            pool->threads[i].state = TERMINATED;
+            pthread_cancel(pool->threads[i].thread);
+            printf("Thread with TID %d is now TERMINATED.\n", tid);
+            pthread_mutex_unlock(&pool->lock);
+            return;
+        }
+    }
+
+    pthread_mutex_unlock(&pool->lock);
+    printf("Thread with TID %d not found.\n", tid);
+}
+
+void displayThreads(const ThreadPool *pool) {
+    pthread_mutex_lock((pthread_mutex_t *)&pool->lock);
+
+    if (pool->count == 0) {
+        printf("No threads in the pool.\n");
+        pthread_mutex_unlock((pthread_mutex_t *)&pool->lock);
+        return;
+    }
+
+    printf("Threads in the pool:\n");
+    for (int i = 0; i < pool->count; i++) {
+        printf("TID: %d, Name: %s, State: %s\n", pool->threads[i].tid, pool->threads[i].name,
+               pool->threads[i].state == RUNNING ? "RUNNING" :
+               pool->threads[i].state == SUSPENDED ? "SUSPENDED" : "TERMINATED");
+    }
+
+    pthread_mutex_unlock((pthread_mutex_t *)&pool->lock);
 }
